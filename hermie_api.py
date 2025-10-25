@@ -9,13 +9,13 @@ from datetime import datetime, timezone
 from flask import Flask, jsonify
 import board
 import adafruit_sht31d
-
-# CONFIG
-READ_INTERVAL = 15         # seconds between sensor reads
-TEMP_OFFSET_F = -2.0       # your script subtracts 2°F
-TEMP_HIGH_THRESHOLD = 85.0
-TEMP_LOW_THRESHOLD = 70.0
-HUMIDITY_LOW_THRESHOLD = 65.0
+from constants import (
+    READ_INTERVAL,
+    TEMP_OFFSET_F,
+    TEMP_HIGH_THRESHOLD,
+    TEMP_LOW_THRESHOLD,
+    HUMIDITY_LOW_THRESHOLD
+)
 
 # Shared state
 state = {

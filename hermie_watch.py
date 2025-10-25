@@ -3,6 +3,15 @@ import adafruit_sht31d
 import board
 import time
 from gpiozero import Buzzer
+from constants import (
+    READ_INTERVAL,
+    TEMP_OFFSET_F,
+    TEMP_HIGH_THRESHOLD,
+    TEMP_LOW_THRESHOLD,
+    HUMIDITY_LOW_THRESHOLD,
+    BUZZ_INTERVAL,
+    ERROR_DISPLAY_INTERVAL
+)
 
 print("Initializing LCD...")
 # Initialize LCD
@@ -35,16 +44,9 @@ except Exception as e:
 
 # Track last buzz time
 last_buzz_time = 0
-BUZZ_INTERVAL = 1200  # 20 minutes in seconds
 
 # Track last error display time
 last_error_display_time = 0
-ERROR_DISPLAY_INTERVAL = 20  # 20 seconds
-
-# Thresholds
-TEMP_HIGH_THRESHOLD = 85  # degrees F
-TEMP_LOW_THRESHOLD = 70   # degrees F
-HUMIDITY_LOW_THRESHOLD = 65  # percent
 
 try:
     iteration = 0
@@ -68,8 +70,8 @@ try:
                         raise  # Re-raise if all retries failed
             
             print(f"Temperature (C): {temperature_c:.2f}")
-            
-            temperature_f = (temperature_c * 9/5 + 32) - 2  # Subtract 2°F offset
+
+            temperature_f = (temperature_c * 9/5 + 32) + TEMP_OFFSET_F
             print(f"Temperature (F): {temperature_f:.1f}")
             print(f"Humidity: {humidity:.1f}%")
 
@@ -125,9 +127,9 @@ try:
                     time_until_next = BUZZ_INTERVAL - (current_time - last_buzz_time)
                     print(f"{alert_message} Buzz on cooldown ({time_until_next:.0f}s remaining)")
 
-            # Wait 15 seconds between readings
-            print("Waiting 15 seconds...")
-            time.sleep(15)
+            # Wait between readings
+            print(f"Waiting {READ_INTERVAL} seconds...")
+            time.sleep(READ_INTERVAL)
 
         except (RuntimeError, OSError) as error:
             # SHT30 can occasionally fail to read
