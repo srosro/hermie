@@ -3,14 +3,12 @@ import adafruit_sht31d
 import board
 import time
 from gpiozero import Buzzer
-from constants import (
+from common import (
     READ_INTERVAL,
     TEMP_OFFSET_F,
-    TEMP_HIGH_THRESHOLD,
-    TEMP_LOW_THRESHOLD,
-    HUMIDITY_LOW_THRESHOLD,
     BUZZ_INTERVAL,
-    ERROR_DISPLAY_INTERVAL
+    ERROR_DISPLAY_INTERVAL,
+    check_alert
 )
 
 print("Initializing LCD...")
@@ -87,26 +85,11 @@ try:
 
             # Check if we should buzz
             current_time = time.time()
-            alert_triggered = False
-            alert_message = ""
-            lcd_alert = ""
-
-            if temperature_f > TEMP_HIGH_THRESHOLD:
-                alert_triggered = True
-                alert_message = f"ALERT: Temperature {temperature_f:.1f}F exceeds {TEMP_HIGH_THRESHOLD}F!"
-                lcd_alert = "Alert: High temp"
-            elif temperature_f < TEMP_LOW_THRESHOLD:
-                alert_triggered = True
-                alert_message = f"ALERT: Temperature {temperature_f:.1f}F below {TEMP_LOW_THRESHOLD}F!"
-                lcd_alert = "Alert: Low temp"
-            elif humidity < HUMIDITY_LOW_THRESHOLD:
-                alert_triggered = True
-                alert_message = f"ALERT: Humidity {humidity:.1f}% below {HUMIDITY_LOW_THRESHOLD}%!"
-                lcd_alert = "Alert: Low humid"
+            alert_triggered, alert_message, lcd_alert = check_alert(temperature_f, humidity)
 
             if alert_triggered:
                 if current_time - last_buzz_time >= BUZZ_INTERVAL:
-                    print(alert_message + " Buzzing...")
+                    print(f"ALERT: {alert_message} Buzzing...")
 
                     # Show alert on LCD
                     lcd.clear()

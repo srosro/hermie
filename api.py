@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-hermie_api.py
+api.py
 Background thread reads SHT31D sensor and exposes latest reading via Flask at /sensor
 """
 import time
@@ -9,12 +9,10 @@ from datetime import datetime, timezone
 from flask import Flask, jsonify
 import board
 import adafruit_sht31d
-from constants import (
+from common import (
     READ_INTERVAL,
     TEMP_OFFSET_F,
-    TEMP_HIGH_THRESHOLD,
-    TEMP_LOW_THRESHOLD,
-    HUMIDITY_LOW_THRESHOLD
+    check_alert
 )
 
 # Shared state
@@ -39,15 +37,8 @@ def init_sensor():
         return None
 
 def compute_alert(temp_f, humidity):
-    if temp_f is None:
-        return None
-    if temp_f > TEMP_HIGH_THRESHOLD:
-        return f"high_temp: {temp_f:.1f}F > {TEMP_HIGH_THRESHOLD}F"
-    if temp_f < TEMP_LOW_THRESHOLD:
-        return f"low_temp: {temp_f:.1f}F < {TEMP_LOW_THRESHOLD}F"
-    if humidity is not None and humidity < HUMIDITY_LOW_THRESHOLD:
-        return f"low_humidity: {humidity:.1f}% < {HUMIDITY_LOW_THRESHOLD}%"
-    return None
+    alert_triggered, alert_message, _ = check_alert(temp_f, humidity)
+    return alert_message if alert_triggered else None
 
 def reader_loop(sensor):
     while True:
