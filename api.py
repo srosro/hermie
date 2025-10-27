@@ -5,14 +5,18 @@ Background thread reads SHT31D sensor and exposes latest reading via Flask at /s
 """
 import time
 import threading
+import atexit
 from datetime import datetime, timezone
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 import board
 import adafruit_sht31d
+import RPi.GPIO as GPIO
 from common import (
     READ_INTERVAL,
     TEMP_OFFSET_F,
-    check_alert
+    check_alert,
+    POWER_OUTLETS
 )
 
 # Shared state
@@ -23,8 +27,12 @@ state = {
     "timestamp_iso": None,
     "error": None,
     "last_read_ok": False,
-    "alert": None
+    "alert": None,
 }
+
+# Dynamically add power outlet states
+for outlet_num in POWER_OUTLETS.keys():
+    state[f"pwr{outlet_num}_on"] = False
 
 # Initialize sensor
 def init_sensor():
@@ -35,6 +43,23 @@ def init_sensor():
     except Exception as e:
         state["error"] = f"Sensor init failed: {e}"
         return None
+
+# Initialize GPIO for power outlet control
+def init_gpio():
+    try:
+        GPIO.setmode(GPIO.BCM)
+        for outlet_num, gpio_pin in POWER_OUTLETS.items():
+            GPIO.setup(gpio_pin, GPIO.OUT)
+            GPIO.output(gpio_pin, GPIO.LOW)
+            print(f"GPIO initialized: PWR{outlet_num} control on GPIO {gpio_pin}")
+    except Exception as e:
+        print(f"GPIO init failed: {e}")
+
+# Cleanup GPIO on exit
+def cleanup_gpio():
+    GPIO.cleanup()
+
+atexit.register(cleanup_gpio)
 
 def compute_alert(temp_f, humidity):
     alert_triggered, alert_message, _ = check_alert(temp_f, humidity)
@@ -81,8 +106,21 @@ if sensor is None:
 reader_thread = threading.Thread(target=reader_loop, args=(sensor,), daemon=True)
 reader_thread.start()
 
+# Initialize GPIO for power outlet control
+init_gpio()
+
 # Flask API
 app = Flask(__name__)
+
+# Configure CORS for all endpoints
+# Allows cross-origin requests from any origin for all HTTP methods
+CORS(app, resources={
+    r"/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 @app.get("/sensor")
 def get_sensor():
@@ -96,6 +134,42 @@ def health():
         "status": "ok" if state.get("last_read_ok") else "degraded",
         "timestamp": datetime.now(timezone.utc).isoformat()
     })
+
+@app.post("/pwr<int:outlet_num>")
+def set_power(outlet_num):
+    """Control power outlet on/off"""
+    # Validate outlet number
+    if outlet_num not in POWER_OUTLETS:
+        return jsonify({"error": f"Invalid outlet number. Valid outlets: {list(POWER_OUTLETS.keys())}"}), 400
+
+    data = request.get_json()
+
+    if not data or "state" not in data:
+        return jsonify({"error": "Missing 'state' field in request body"}), 400
+
+    requested_state = data["state"].lower()
+
+    if requested_state not in ["on", "off"]:
+        return jsonify({"error": "State must be 'on' or 'off'"}), 400
+
+    try:
+        gpio_pin = POWER_OUTLETS[outlet_num]
+        state_key = f"pwr{outlet_num}_on"
+
+        if requested_state == "on":
+            GPIO.output(gpio_pin, GPIO.HIGH)
+            state[state_key] = True
+        else:
+            GPIO.output(gpio_pin, GPIO.LOW)
+            state[state_key] = False
+
+        return jsonify({
+            "status": "success",
+            state_key: state[state_key],
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+    except Exception as e:
+        return jsonify({"error": f"Failed to set power state: {e}"}), 500
 
 if __name__ == "__main__":
     # Bind to 0.0.0.0 so LAN devices can access
