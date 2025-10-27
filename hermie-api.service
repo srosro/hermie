@@ -1,0 +1,16 @@
+[Unit]
+Description=Hermie SHT31D API
+After=multi-user.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=odio
+WorkingDirectory=/home/odio/Hacking/hermie
+# Use the venv python
+ExecStart=/home/odio/Hacking/hermie/.venv/bin/python /home/odio/Hacking/hermie/api.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
