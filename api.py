@@ -16,7 +16,7 @@ from common import (
     READ_INTERVAL,
     TEMP_OFFSET_F,
     check_alert,
-    POWER_OUTLETS
+    DEVICES
 )
 
 # Shared state
@@ -30,9 +30,9 @@ state = {
     "alert": None,
 }
 
-# Dynamically add power outlet states
-for outlet_num in POWER_OUTLETS.keys():
-    state[f"pwr{outlet_num}_on"] = False
+# Dynamically add device states
+for device_name in DEVICES.keys():
+    state[f"{device_name}_on"] = False
 
 # Initialize sensor
 def init_sensor():
@@ -44,14 +44,15 @@ def init_sensor():
         state["error"] = f"Sensor init failed: {e}"
         return None
 
-# Initialize GPIO for power outlet control
+# Initialize GPIO for device control
 def init_gpio():
     try:
         GPIO.setmode(GPIO.BCM)
-        for outlet_num, gpio_pin in POWER_OUTLETS.items():
-            GPIO.setup(gpio_pin, GPIO.OUT)
-            GPIO.output(gpio_pin, GPIO.LOW)
-            print(f"GPIO initialized: PWR{outlet_num} control on GPIO {gpio_pin}")
+        for device_name, pins in DEVICES.items():
+            for pin_type, gpio_pin in pins.items():
+                GPIO.setup(gpio_pin, GPIO.OUT)
+                GPIO.output(gpio_pin, GPIO.LOW)
+                print(f"GPIO initialized: {device_name.title()} {pin_type} on GPIO {gpio_pin}")
     except Exception as e:
         print(f"GPIO init failed: {e}")
 
@@ -106,7 +107,7 @@ if sensor is None:
 reader_thread = threading.Thread(target=reader_loop, args=(sensor,), daemon=True)
 reader_thread.start()
 
-# Initialize GPIO for power outlet control
+# Initialize GPIO for device control
 init_gpio()
 
 # Flask API
@@ -135,12 +136,12 @@ def health():
         "timestamp": datetime.now(timezone.utc).isoformat()
     })
 
-@app.post("/pwr<int:outlet_num>")
-def set_power(outlet_num):
-    """Control power outlet on/off"""
-    # Validate outlet number
-    if outlet_num not in POWER_OUTLETS:
-        return jsonify({"error": f"Invalid outlet number. Valid outlets: {list(POWER_OUTLETS.keys())}"}), 400
+@app.post("/control/<device>")
+def set_device(device):
+    """Control device (LED indicator + relay) on/off"""
+    # Validate device name
+    if device not in DEVICES:
+        return jsonify({"error": f"Invalid device. Valid devices: {list(DEVICES.keys())}"}), 400
 
     data = request.get_json()
 
@@ -153,14 +154,18 @@ def set_power(outlet_num):
         return jsonify({"error": "State must be 'on' or 'off'"}), 400
 
     try:
-        gpio_pin = POWER_OUTLETS[outlet_num]
-        state_key = f"pwr{outlet_num}_on"
+        device_pins = DEVICES[device]
+        state_key = f"{device}_on"
 
         if requested_state == "on":
-            GPIO.output(gpio_pin, GPIO.HIGH)
+            # Turn on both LED and relay
+            GPIO.output(device_pins["led"], GPIO.HIGH)
+            GPIO.output(device_pins["relay"], GPIO.HIGH)
             state[state_key] = True
         else:
-            GPIO.output(gpio_pin, GPIO.LOW)
+            # Turn off both LED and relay
+            GPIO.output(device_pins["led"], GPIO.LOW)
+            GPIO.output(device_pins["relay"], GPIO.LOW)
             state[state_key] = False
 
         return jsonify({
@@ -169,7 +174,7 @@ def set_power(outlet_num):
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
-        return jsonify({"error": f"Failed to set power state: {e}"}), 500
+        return jsonify({"error": f"Failed to set {device} state: {e}"}), 500
 
 if __name__ == "__main__":
     # Bind to 0.0.0.0 so LAN devices can access

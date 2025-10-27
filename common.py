@@ -25,12 +25,17 @@ HUMIDITY_HIGH_THRESHOLD = 99.97  # percent
 BUZZ_INTERVAL = 1200  # 20 minutes in seconds
 ERROR_DISPLAY_INTERVAL = 20  # seconds between error displays on LCD
 
-# Power outlet GPIO pin configuration
+# Device control GPIO pin configuration
 # Using BCM numbering
-POWER_OUTLETS = {
-    1: 17,  # GPIO 17 (physical pin 11)
-    2: 27,  # GPIO 27 (physical pin 13)
-    3: 22,  # GPIO 22 (physical pin 15)
+DEVICES = {
+    "heat": {
+        "led": 17,    # GPIO 17 (physical pin 11) - LED indicator
+        "relay": 27,  # GPIO 27 (physical pin 13) - IoT Power Relay
+    },
+    "pump": {
+        "led": 22,    # GPIO 22 (physical pin 15) - LED indicator
+        "relay": 23,  # GPIO 23 (physical pin 16) - Pump relay
+    }
 }
 
 def check_alert(temp_f, humidity):
