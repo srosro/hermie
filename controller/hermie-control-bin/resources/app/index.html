@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<!-- Created with https://packager.turbowarp.org/ -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- We only include this to explicitly loosen the CSP of various packager environments. It does not provide any security. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: blob:">
+  <title>Hermie Control</title>
+  <style>
+    body {
+      color: #ffffff;
+      font-family: sans-serif;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+    }
+    :root, body.is-fullscreen {
+      background-color: #000000;
+    }
+    [hidden] {
+      display: none !important;
+    }
+    h1 {
+      font-weight: normal;
+    }
+    a {
+      color: inherit;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    #app, #loading, #error, #launch {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: default;
+      user-select: none;
+      -webkit-user-select: none;
+      background-color: #000000;
+    }
+    #launch {
+      background-color: rgba(0, 0, 0, 0.7);
+      cursor: pointer;
+    }
+    .green-flag {
+      width: 80px;
+      height: 80px;
+      padding: 16px;
+      border-radius: 100%;
+      background: rgba(255, 255, 255, 0.75);
+      border: 3px solid hsla(0, 100%, 100%, 1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-sizing: border-box;
+    }
+    #loading {
+      
+    }
+    .progress-bar-outer {
+      border: 1px solid currentColor;
+      height: 10px;
+      width: 200px;
+      max-width: 200px;
+    }
+    .progress-bar-inner {
+      height: 100%;
+      width: 0;
+      background-color: currentColor;
+    }
+    .loading-text, noscript {
+      font-weight: normal;
+      font-size: 36px;
+      margin: 0 0 16px;
+    }
+    .loading-image {
+      margin: 0 0 16px;
+    }
+    #error-message, #error-stack {
+      font-family: monospace;
+      max-width: 600px;
+      white-space: pre-wrap;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    #error-stack {
+      text-align: left;
+      max-height: 200px;
+      overflow: auto;
+    }
+    .control-button {
+      width: 2rem;
+      height: 2rem;
+      padding: 0.375rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: pointer;
+      border: 0;
+      border-radius: 4px;
+    }
+    .control-button-highlight:hover {
+      background: #ff4c4c26;
+    }
+    .control-button-highlight.active {
+      background: #ff4c4c59;
+    }
+    .fullscreen-button {
+      background: white;
+    }
+    .standalone-fullscreen-button {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      border-radius: 0 0 0 4px;
+      padding: 4px;
+      cursor: pointer;
+    }
+    .sc-canvas {
+      cursor: auto;
+    }
+    .sc-monitor-root[data-opcode^="data_"] .sc-monitor-value-color {
+      background-color: #ff8c1a;
+    }
+    .sc-monitor-row-value-outer {
+      background-color: #fc662c;
+    }
+    .sc-monitor-row-value-editing .sc-monitor-row-value-outer {
+      background-color: #e25b27;
+    }
+    
+  </style>
+  <meta name="theme-color" content="#000000">
+  
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="launch" class="screen" hidden title="Click to start">
+    <div class="green-flag">
+      <svg viewBox="0 0 16.63 17.5" width="42" height="44">
+        <defs><style>.cls-1,.cls-2{fill:#4cbf56;stroke:#45993d;stroke-linecap:round;stroke-linejoin:round;}.cls-2{stroke-width:1.5px;}</style></defs>
+        <path class="cls-1" d="M.75,2A6.44,6.44,0,0,1,8.44,2h0a6.44,6.44,0,0,0,7.69,0V12.4a6.44,6.44,0,0,1-7.69,0h0a6.44,6.44,0,0,0-7.69,0"/>
+        <line class="cls-2" x1="0.75" y1="16.75" x2="0.75" y2="0.75"/>
+      </svg>
+    </div>
+  </div>
+
+  <div id="loading" class="screen">
+    <noscript>Enable JavaScript</noscript>
+    
+    
+    <div class="progress-bar-outer"><div class="progress-bar-inner" id="loading-inner"></div></div>
+  </div>
+
+  <div id="error" class="screen" hidden>
+    <h1>Error</h1>
+    <details>
+      <summary id="error-message"></summary>
+      <p id="error-stack"></p>
+    </details>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    const appElement = document.getElementById('app');
+    const launchScreen = document.getElementById('launch');
+    const loadingScreen = document.getElementById('loading');
+    const loadingInner = document.getElementById('loading-inner');
+    const errorScreen = document.getElementById('error');
+    const errorScreenMessage = document.getElementById('error-message');
+    const errorScreenStack = document.getElementById('error-stack');
+
+    const handleError = (error) => {
+      console.error(error);
+      if (!errorScreen.hidden) return;
+      errorScreen.hidden = false;
+      errorScreenMessage.textContent = '' + error;
+      let debug = error && error.stack || 'no stack';
+      debug += '\nUser agent: ' + navigator.userAgent;
+      errorScreenStack.textContent = debug;
+    };
+    const setProgress = (progress) => {
+      if (loadingInner) loadingInner.style.width = progress * 100 + '%';
+    };
+    const interpolate = (a, b, t) => a + t * (b - a);
+
+    try {
+      setProgress(0.1);
+
+      const scaffolding = new Scaffolding.Scaffolding();
+      scaffolding.width = 480;
+      scaffolding.height = 360;
+      scaffolding.resizeMode = "preserve-ratio";
+      scaffolding.editableLists = false;
+      scaffolding.usePackagedRuntime = true;
+      scaffolding.setup();
+      scaffolding.appendTo(appElement);
+
+      const vm = scaffolding.vm;
+      window.scaffolding = scaffolding;
+      window.vm = scaffolding.vm;
+      window.Scratch = {
+        vm,
+        renderer: vm.renderer,
+        audioEngine: vm.runtime.audioEngine,
+        bitmapAdapter: vm.runtime.v2BitmapAdapter,
+        videoProvider: vm.runtime.ioDevices.video.provider
+      };
+
+      scaffolding.setUsername("player####".replace(/#/g, () => Math.floor(Math.random() * 10)));
+      scaffolding.setAccentColor("#ff4c4c");
+
+      try {
+        scaffolding.addCloudProvider(new Scaffolding.Cloud.WebSocketProvider(["wss://clouddata.turbowarp.org","wss://clouddata.turbowarp.xyz"], "p4-@Hermie Control.sb3"));
+      } catch (error) {
+        console.error(error);
+      }
+
+      vm.setTurboMode(false);
+      if (vm.setInterpolation) vm.setInterpolation(false);
+      if (vm.setFramerate) vm.setFramerate(30);
+      if (vm.renderer.setUseHighQualityRender) vm.renderer.setUseHighQualityRender(false);
+      if (vm.setRuntimeOptions) vm.setRuntimeOptions({
+        fencing: true,
+        miscLimits: true,
+        maxClones: 300,
+      });
+      if (vm.setCompilerOptions) vm.setCompilerOptions({
+        enabled: true,
+        warpTimer: false
+      });
+      if (vm.renderer.setMaxTextureDimension) vm.renderer.setMaxTextureDimension(2048);
+
+      // enforcePrivacy threat model only makes sense in the editor
+      if (vm.runtime.setEnforcePrivacy) vm.runtime.setEnforcePrivacy(false);
+
+      if (typeof ScaffoldingAddons !== 'undefined') {
+        ScaffoldingAddons.run(scaffolding, {"gamepad":false,"pointerlock":false,"specialCloudBehaviors":false,"unsafeCloudBehaviors":false,"pause":false});
+      }
+
+      scaffolding.setExtensionSecurityManager({
+        getSandboxMode: () => 'unsandboxed',
+        canLoadExtensionFromProject: () => true
+      });
+      for (const extension of ["data:application/javascript,%2F%2F%20hermie-control.js%0A(function%20(Scratch)%20%7B%0A%20%20'use%20strict'%3B%0A%0A%20%20class%20HermieControl%20%7B%0A%20%20%20%20constructor()%20%7B%0A%20%20%20%20%20%20this.baseURL%20%3D%20'http%3A%2F%2F100.101.120.3%3A5000'%3B%0A%20%20%20%20%20%20this.deviceResponses%20%3D%20%7B%7D%3B%0A%20%20%20%20%20%20this.deviceErrors%20%3D%20%7B%7D%3B%0A%20%20%20%20%20%20this.sensorData%20%3D%20%7B%7D%3B%0A%20%20%20%20%20%20this.healthData%20%3D%20%7B%7D%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20Helper%3A%20fetch%20with%20timeout%0A%20%20%20%20async%20_fetch(url%2C%20options%20%3D%20%7B%7D)%20%7B%0A%20%20%20%20%20%20const%20controller%20%3D%20new%20AbortController()%3B%0A%20%20%20%20%20%20const%20timeout%20%3D%20setTimeout(()%20%3D%3E%20controller.abort()%2C%205000)%3B%0A%20%20%20%20%20%20try%20%7B%0A%20%20%20%20%20%20%20%20const%20res%20%3D%20await%20fetch(url%2C%20%7B%20...options%2C%20signal%3A%20controller.signal%20%7D)%3B%0A%20%20%20%20%20%20%20%20if%20(!res.ok)%20%7B%0A%20%20%20%20%20%20%20%20%20%20const%20data%20%3D%20await%20res.json().catch(()%20%3D%3E%20(%7B%7D))%3B%0A%20%20%20%20%20%20%20%20%20%20throw%20new%20Error(data.error%20%7C%7C%20%60HTTP%20%24%7Bres.status%7D%60)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20return%20await%20res.json()%3B%0A%20%20%20%20%20%20%7D%20finally%20%7B%0A%20%20%20%20%20%20%20%20clearTimeout(timeout)%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%0A%20%20%20%20getInfo()%20%7B%0A%20%20%20%20%20%20return%20%7B%0A%20%20%20%20%20%20%20%20id%3A%20'hermiecontrol'%2C%0A%20%20%20%20%20%20%20%20name%3A%20'Hermie%20Control'%2C%0A%20%20%20%20%20%20%20%20color1%3A%20'%23FF6B35'%2C%0A%20%20%20%20%20%20%20%20color2%3A%20'%23E85D31'%2C%0A%20%20%20%20%20%20%20%20blocks%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'setBaseURL'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'set%20base%20URL%20to%20%5BURL%5D'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%20URL%3A%20%7B%20type%3A%20Scratch.ArgumentType.STRING%2C%20defaultValue%3A%20this.baseURL%20%7D%20%7D%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'setDevice'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'set%20%5BDEVICE%5D%20%5BSTATE%5D'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20DEVICE%3A%20%7B%20type%3A%20Scratch.ArgumentType.STRING%2C%20menu%3A%20'devices'%2C%20defaultValue%3A%20'heat'%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20STATE%3A%20%7B%20type%3A%20Scratch.ArgumentType.STRING%2C%20menu%3A%20'states'%2C%20defaultValue%3A%20'on'%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'getDeviceField'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'%5BDEVICE%5D%20response%20%5BFIELD%5D'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20DEVICE%3A%20%7B%20type%3A%20Scratch.ArgumentType.STRING%2C%20menu%3A%20'devices'%2C%20defaultValue%3A%20'heat'%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20FIELD%3A%20%7B%20type%3A%20Scratch.ArgumentType.STRING%2C%20menu%3A%20'deviceFields'%2C%20defaultValue%3A%20'status'%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'getDeviceError'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'%5BDEVICE%5D%20last%20error'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%20DEVICE%3A%20%7B%20type%3A%20Scratch.ArgumentType.STRING%2C%20menu%3A%20'devices'%2C%20defaultValue%3A%20'heat'%20%7D%20%7D%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'isDeviceOn'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.BOOLEAN%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'%5BDEVICE%5D%20is%20on%3F'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%20DEVICE%3A%20%7B%20type%3A%20Scratch.ArgumentType.STRING%2C%20menu%3A%20'devices'%2C%20defaultValue%3A%20'heat'%20%7D%20%7D%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'deviceAsJSON'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'%5BDEVICE%5D%20response%20as%20JSON'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%20DEVICE%3A%20%7B%20type%3A%20Scratch.ArgumentType.STRING%2C%20menu%3A%20'devices'%2C%20defaultValue%3A%20'heat'%20%7D%20%7D%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20'---'%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'fetchSensor'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'fetch%20sensor%20data'%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'getSensorField'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'sensor%20%5BFIELD%5D'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20FIELD%3A%20%7B%20type%3A%20Scratch.ArgumentType.STRING%2C%20menu%3A%20'sensorFields'%2C%20defaultValue%3A%20'temperature_f'%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'getSensorError'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'sensor%20error'%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'isSensorReadOK'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.BOOLEAN%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'sensor%20read%20ok%3F'%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'hasAlert'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.BOOLEAN%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'sensor%20has%20alert%3F'%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'sensorAsJSON'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'sensor%20data%20as%20JSON'%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20'---'%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'checkHealth'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'check%20system%20health'%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'getHealthStatus'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'health%20status'%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20'isHealthy'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.BOOLEAN%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20'system%20is%20healthy%3F'%0A%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20menus%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20devices%3A%20%7B%20acceptReporters%3A%20true%2C%20items%3A%20%5B'heat'%2C%20'pump'%5D%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20states%3A%20%7B%20acceptReporters%3A%20true%2C%20items%3A%20%5B'on'%2C%20'off'%5D%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20deviceFields%3A%20%7B%20acceptReporters%3A%20true%2C%20items%3A%20%5B'status'%2C%20'timestamp'%5D%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20sensorFields%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20acceptReporters%3A%20true%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20items%3A%20%5B'temperature_f'%2C%20'temperature_c'%2C%20'humidity'%2C%20'alert'%2C%20'error'%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20'timestamp_iso'%2C%20'heat_on'%2C%20'pump_on'%5D%0A%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20setBaseURL(args)%20%7B%0A%20%20%20%20%20%20const%20url%20%3D%20args.URL.trim()%3B%0A%20%20%20%20%20%20if%20(url)%20this.baseURL%20%3D%20url.replace(%2F%5C%2F%24%2F%2C%20'')%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20async%20setDevice(args)%20%7B%0A%20%20%20%20%20%20const%20device%20%3D%20args.DEVICE%3B%0A%20%20%20%20%20%20try%20%7B%0A%20%20%20%20%20%20%20%20const%20json%20%3D%20await%20this._fetch(%60%24%7Bthis.baseURL%7D%2Fcontrol%2F%24%7Bdevice%7D%60%2C%20%7B%0A%20%20%20%20%20%20%20%20%20%20method%3A%20'POST'%2C%0A%20%20%20%20%20%20%20%20%20%20headers%3A%20%7B%20'Content-Type'%3A%20'application%2Fjson'%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20body%3A%20JSON.stringify(%7B%20state%3A%20args.STATE.toLowerCase()%20%7D)%2C%0A%20%20%20%20%20%20%20%20%20%20cache%3A%20'no-store'%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%20%20%20%20this.deviceResponses%5Bdevice%5D%20%3D%20json%3B%0A%20%20%20%20%20%20%20%20this.deviceErrors%5Bdevice%5D%20%3D%20null%3B%0A%20%20%20%20%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20%20%20%20%20this.deviceErrors%5Bdevice%5D%20%3D%20e.message%3B%0A%20%20%20%20%20%20%20%20this.deviceResponses%5Bdevice%5D%20%3D%20null%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%0A%20%20%20%20getDeviceField(args)%20%7B%0A%20%20%20%20%20%20const%20response%20%3D%20this.deviceResponses%5Bargs.DEVICE%5D%3B%0A%20%20%20%20%20%20if%20(!response)%20return%20''%3B%0A%20%20%20%20%20%20const%20val%20%3D%20response%5Bargs.FIELD%5D%3B%0A%20%20%20%20%20%20return%20val%20%3F%3F%20''%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20getDeviceError(args)%20%7B%0A%20%20%20%20%20%20return%20this.deviceErrors%5Bargs.DEVICE%5D%20%7C%7C%20''%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20isDeviceOn(args)%20%7B%0A%20%20%20%20%20%20const%20device%20%3D%20args.DEVICE%3B%0A%20%20%20%20%20%20const%20response%20%3D%20this.deviceResponses%5Bdevice%5D%3B%0A%20%20%20%20%20%20const%20key%20%3D%20%60%24%7Bdevice%7D_on%60%3B%0A%0A%20%20%20%20%20%20%2F%2F%20Check%20control%20response%20first%2C%20fall%20back%20to%20sensor%20data%0A%20%20%20%20%20%20if%20(response%20%26%26%20key%20in%20response)%20return%20Boolean(response%5Bkey%5D)%3B%0A%20%20%20%20%20%20if%20(key%20in%20this.sensorData)%20return%20Boolean(this.sensorData%5Bkey%5D)%3B%0A%20%20%20%20%20%20return%20false%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20deviceAsJSON(args)%20%7B%0A%20%20%20%20%20%20const%20response%20%3D%20this.deviceResponses%5Bargs.DEVICE%5D%3B%0A%20%20%20%20%20%20return%20response%20%3F%20JSON.stringify(response)%20%3A%20'%7B%7D'%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20async%20fetchSensor()%20%7B%0A%20%20%20%20%20%20try%20%7B%0A%20%20%20%20%20%20%20%20const%20json%20%3D%20await%20this._fetch(%60%24%7Bthis.baseURL%7D%2Fsensor%3F_%3D%24%7BDate.now()%7D%60%2C%20%7B%20cache%3A%20'no-store'%20%7D)%3B%0A%20%20%20%20%20%20%20%20this.sensorData%20%3D%20json%3B%0A%20%20%20%20%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20%20%20%20%20this.sensorData%20%3D%20%7B%20error%3A%20e.message%2C%20last_read_ok%3A%20false%20%7D%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%0A%20%20%20%20getSensorField(args)%20%7B%0A%20%20%20%20%20%20const%20val%20%3D%20this.sensorData%5Bargs.FIELD%5D%3B%0A%20%20%20%20%20%20return%20val%20%3F%3F%20''%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20getSensorError()%20%7B%0A%20%20%20%20%20%20return%20this.sensorData.error%20%7C%7C%20''%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20isSensorReadOK()%20%7B%0A%20%20%20%20%20%20return%20Boolean(this.sensorData.last_read_ok)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20hasAlert()%20%7B%0A%20%20%20%20%20%20return%20Boolean(this.sensorData.alert)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20sensorAsJSON()%20%7B%0A%20%20%20%20%20%20return%20JSON.stringify(this.sensorData)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20async%20checkHealth()%20%7B%0A%20%20%20%20%20%20try%20%7B%0A%20%20%20%20%20%20%20%20this.healthData%20%3D%20await%20this._fetch(%60%24%7Bthis.baseURL%7D%2Fhealth%60%2C%20%7B%20cache%3A%20'no-store'%20%7D)%3B%0A%20%20%20%20%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20%20%20%20%20this.healthData%20%3D%20%7B%20status%3A%20'error'%2C%20error%3A%20e.message%20%7D%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%0A%20%20%20%20getHealthStatus()%20%7B%0A%20%20%20%20%20%20return%20this.healthData.status%20%7C%7C%20''%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20isHealthy()%20%7B%0A%20%20%20%20%20%20return%20this.healthData.status%20%3D%3D%3D%20'ok'%3B%0A%20%20%20%20%7D%0A%20%20%7D%0A%0A%20%20Scratch.extensions.register(new%20HermieControl())%3B%0A%7D)(Scratch)%3B"]) {
+        vm.extensionManager.loadExtensionURL(extension);
+      }
+
+    } catch (e) {
+      handleError(e);
+    }
+  </script>
+  
+  
+    <script>
+      const getProjectData = (function() {
+        const storage = scaffolding.storage;
+        storage.onprogress = (total, loaded) => {
+          setProgress(interpolate(0.2, 0.98, loaded / total));
+        };
+        
+        storage.addWebStore(
+          [
+            storage.AssetType.ImageVector,
+            storage.AssetType.ImageBitmap,
+            storage.AssetType.Sound,
+            storage.AssetType.Font
+          ].filter(i => i),
+          (asset) => new URL('./assets/' + asset.assetId + '.' + asset.dataFormat, location).href
+        );
+        return () => new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.onload = () => {
+          resolve(xhr.response);
+        };
+        xhr.onerror = () => {
+          if (location.protocol === 'file:') {
+            reject(new Error('Zip environment must be used on a website, not on a local file. To fix this error, use the "Plain HTML" environment instead.'));
+          } else {
+            reject(new Error('Request to load project data failed.'));
+          }
+        };
+        xhr.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setProgress(interpolate(0.1, 0.2, e.loaded / e.total));
+          }
+        };
+        xhr.responseType = 'arraybuffer';
+        xhr.open('GET', "./assets/project.json");
+        xhr.send();
+      });
+      })();
+    </script>
+  <script>
+    const run = async () => {
+      const projectData = await getProjectData();
+      await scaffolding.loadProject(projectData);
+      setProgress(1);
+      loadingScreen.hidden = true;
+      if (true) {
+        scaffolding.start();
+      } else {
+        launchScreen.hidden = false;
+        launchScreen.addEventListener('click', () => {
+          launchScreen.hidden = true;
+          scaffolding.start();
+        });
+        launchScreen.focus();
+      }
+    };
+    run().catch(handleError);
+  </script>
+</body>
+</html>
