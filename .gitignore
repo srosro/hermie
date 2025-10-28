@@ -1,4 +1,8 @@
 .DS_Store
+._*
+
+# Hermie Control - Electron binary (too large for git)
+controller/hermie-control-bin/hermie-control
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

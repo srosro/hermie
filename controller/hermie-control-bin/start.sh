@@ -1,3 +1,3 @@
 #!/bin/bash
 cd "$(dirname "$0")"
-./hermie-control
+xvfb-run --auto-servernum ./hermie-control

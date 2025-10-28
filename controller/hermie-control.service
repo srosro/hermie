@@ -1,0 +1,19 @@
+[Unit]
+Description=Hermie Control Service
+After=network.target
+
+[Service]
+Type=simple
+User=odio
+WorkingDirectory=/home/odio/Hacking/hermie/controller/hermie-control-bin
+ExecStart=/home/odio/Hacking/hermie/controller/hermie-control-bin/start.sh
+Restart=always
+RestartSec=1
+RuntimeMaxSec=600
+StandardOutput=journal
+StandardError=journal
+KillMode=mixed
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
