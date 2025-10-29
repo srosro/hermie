@@ -2,27 +2,35 @@
 common.py
 Shared configuration and utilities for Hermie environmental monitoring system
 """
+import logging
 
 # API Server Configuration
 API_SERVER_IP = "100.101.120.3"  # Tailscale IP of the Raspberry Pi server
 API_PORT = 5000
 
+# Hardware Configuration
+BUZZER_GPIO_PIN = 16
+LCD_I2C_ADDRESS = 0x27
+LCD_LINE_LENGTH = 16
+BUZZ_DURATION_SECONDS = 3
+ALERT_DISPLAY_DURATION_SECONDS = 20
+
 # Sensor reading interval
-READ_INTERVAL = 15  # seconds between sensor reads
+READ_INTERVAL = 5  # seconds between sensor reads
 
 # Temperature calibration
 TEMP_OFFSET_F = -2.0  # temperature offset in Fahrenheit
 
 # Temperature thresholds
 TEMP_HIGH_THRESHOLD = 85.0  # degrees F
-TEMP_LOW_THRESHOLD = 70.0   # degrees F
+TEMP_LOW_THRESHOLD = 75.0   # degrees F
 
 # Humidity thresholds
-HUMIDITY_LOW_THRESHOLD = 65.0  # percent
-HUMIDITY_HIGH_THRESHOLD = 99.97  # percent
+HUMIDITY_LOW_THRESHOLD = 75.0  # percent
+HUMIDITY_HIGH_THRESHOLD = 95.0  # percent
 
 # Watch-specific intervals
-BUZZ_INTERVAL = 1200  # 20 minutes in seconds
+BUZZ_INTERVAL = 300  # 5 minutes in seconds
 ERROR_DISPLAY_INTERVAL = 20  # seconds between error displays on LCD
 
 # Device control GPIO pin configuration
@@ -66,5 +74,14 @@ def check_alert(temp_f, humidity):
             return (True,
                     f"Humidity {humidity:.1f}% below {HUMIDITY_LOW_THRESHOLD}%",
                     "Alert: Low humid")
-    
+
     return (False, None, None)
+
+def setup_logging():
+    """Configure logging with consistent format across all scripts"""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    return logging.getLogger(__name__)

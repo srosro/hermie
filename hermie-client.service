@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermie Client Monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=odio
+WorkingDirectory=/home/odio/Hacking/hermie
+ExecStart=/home/odio/Hacking/hermie/.venv/bin/python /home/odio/Hacking/hermie/client.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -16,8 +16,11 @@ from common import (
     READ_INTERVAL,
     TEMP_OFFSET_F,
     check_alert,
-    DEVICES
+    DEVICES,
+    setup_logging
 )
+
+logger = setup_logging()
 
 # Shared state
 state = {
@@ -44,17 +47,18 @@ def init_sensor():
         state["error"] = f"Sensor init failed: {e}"
         return None
 
-# Initialize GPIO for device control
+# Initialize GPIO for device control (relays only - LEDs controlled by client.py)
 def init_gpio():
     try:
         GPIO.setmode(GPIO.BCM)
         for device_name, pins in DEVICES.items():
-            for pin_type, gpio_pin in pins.items():
-                GPIO.setup(gpio_pin, GPIO.OUT)
-                GPIO.output(gpio_pin, GPIO.LOW)
-                print(f"GPIO initialized: {device_name.title()} {pin_type} on GPIO {gpio_pin}")
+            # Only initialize relay pins, not LED pins
+            relay_pin = pins["relay"]
+            GPIO.setup(relay_pin, GPIO.OUT)
+            GPIO.output(relay_pin, GPIO.LOW)
+            logger.info(f"GPIO initialized: {device_name.title()} relay on GPIO {relay_pin}")
     except Exception as e:
-        print(f"GPIO init failed: {e}")
+        logger.error(f"GPIO init failed: {e}")
 
 # Cleanup GPIO on exit
 def cleanup_gpio():
@@ -102,7 +106,7 @@ def reader_loop(sensor):
 sensor = init_sensor()
 if sensor is None:
     # Still start Flask to allow returning error info
-    print("Warning: sensor init failed; API will run but return errors until sensor is available.")
+    logger.warning("Sensor init failed; API will run but return errors until sensor is available.")
 
 reader_thread = threading.Thread(target=reader_loop, args=(sensor,), daemon=True)
 reader_thread.start()
@@ -138,7 +142,7 @@ def health():
 
 @app.post("/control/<device>")
 def set_device(device):
-    """Control device (LED indicator + relay) on/off"""
+    """Control device relay on/off (LED indicators controlled by client.py)"""
     # Validate device name
     if device not in DEVICES:
         return jsonify({"error": f"Invalid device. Valid devices: {list(DEVICES.keys())}"}), 400
@@ -158,13 +162,11 @@ def set_device(device):
         state_key = f"{device}_on"
 
         if requested_state == "on":
-            # Turn on both LED and relay
-            GPIO.output(device_pins["led"], GPIO.HIGH)
+            # Turn on relay only (LED controlled by client.py)
             GPIO.output(device_pins["relay"], GPIO.HIGH)
             state[state_key] = True
         else:
-            # Turn off both LED and relay
-            GPIO.output(device_pins["led"], GPIO.LOW)
+            # Turn off relay only (LED controlled by client.py)
             GPIO.output(device_pins["relay"], GPIO.LOW)
             state[state_key] = False
 
