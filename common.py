@@ -19,7 +19,7 @@ ALERT_DISPLAY_DURATION_SECONDS = 20
 READ_INTERVAL = 5  # seconds between sensor reads
 
 # Temperature calibration
-TEMP_OFFSET_F = -2.0  # temperature offset in Fahrenheit
+TEMP_OFFSET_F = -1.0  # temperature offset in Fahrenheit
 
 # Temperature thresholds
 TEMP_HIGH_THRESHOLD = 85.0  # degrees F
@@ -29,9 +29,8 @@ TEMP_LOW_THRESHOLD = 75.0   # degrees F
 HUMIDITY_LOW_THRESHOLD = 75.0  # percent
 HUMIDITY_HIGH_THRESHOLD = 95.0  # percent
 
-# Watch-specific intervals
-BUZZ_INTERVAL = 300  # 5 minutes in seconds
-ERROR_DISPLAY_INTERVAL = 20  # seconds between error displays on LCD
+# Notification cooldown interval for buzzes, LCD alerts, and logging
+NOTIF_COOLDOWN = 300  # 5 minutes in seconds
 
 # Device control GPIO pin configuration
 # Using BCM numbering

@@ -20,8 +20,7 @@ from common import (
     HUMIDITY_HIGH_THRESHOLD,
     API_SERVER_IP,
     API_PORT,
-    BUZZ_INTERVAL,
-    ERROR_DISPLAY_INTERVAL,
+    NOTIF_COOLDOWN,
     check_alert,
     DEVICES,
     setup_logging,
@@ -75,7 +74,6 @@ atexit.register(cleanup_leds)
 API_URL = f"http://{API_SERVER_IP}:{API_PORT}/sensor"
 POLL_INTERVAL = READ_INTERVAL  # Use same interval as other scripts
 BUZZ_DURATION = BUZZ_DURATION_SECONDS  # Use constant
-BUZZ_COOLDOWN = BUZZ_INTERVAL  # 5 minutes between buzzes (from common.py)
 
 # Initialize buzzer
 logger.info(f"Initializing buzzer on GPIO {BUZZER_GPIO_PIN}...")
@@ -132,10 +130,10 @@ def should_buzz(alert_triggered, alert_message, current_time):
         return False
 
     time_since_last_buzz = current_time - last_buzz_time
-    if time_since_last_buzz >= BUZZ_COOLDOWN:
+    if time_since_last_buzz >= NOTIF_COOLDOWN:
         return True
     else:
-        cooldown_remaining = BUZZ_COOLDOWN - time_since_last_buzz
+        cooldown_remaining = NOTIF_COOLDOWN - time_since_last_buzz
         logger.info(f"Alert condition present but buzzer on cooldown ({cooldown_remaining:.0f}s remaining)")
         return False
 
@@ -157,11 +155,10 @@ def main():
     logger.info(f"Polling {API_URL} every {POLL_INTERVAL} seconds")
     logger.info(f"Temperature thresholds: {TEMP_LOW_THRESHOLD}F - {TEMP_HIGH_THRESHOLD}F")
     logger.info(f"Humidity thresholds: {HUMIDITY_LOW_THRESHOLD}% - {HUMIDITY_HIGH_THRESHOLD}%")
-    logger.info(f"Buzzer cooldown: {BUZZ_COOLDOWN} seconds")
+    logger.info(f"Notification cooldown: {NOTIF_COOLDOWN} seconds (buzzer, LCD alerts, logging)")
     if not HEADLESS_MODE:
         logger.info(f"LCD available: {lcd is not None}")
         logger.info(f"LED indicators available: {leds_available}")
-    logger.info(f"Logging interval: {BUZZ_COOLDOWN} seconds (same as buzzer cooldown)")
     logger.info("-" * 50)
 
     while True:
@@ -172,7 +169,7 @@ def main():
 
         if data is None:
             logger.warning("Failed to get sensor data, will retry next interval")
-            if lcd and current_time - last_error_display_time >= ERROR_DISPLAY_INTERVAL:
+            if lcd and current_time - last_error_display_time >= NOTIF_COOLDOWN:
                 display_on_lcd("API Unavailable")
                 last_error_display_time = current_time
         else:
@@ -189,7 +186,7 @@ def main():
                 logger.debug(f"Humidity: {humidity:.1f}%")
             if error:
                 logger.error(f"API Error: {error}")
-                if lcd and current_time - last_error_display_time >= ERROR_DISPLAY_INTERVAL:
+                if lcd and current_time - last_error_display_time >= NOTIF_COOLDOWN:
                     error_str = str(error)
                     display_on_lcd(error_str[:LCD_LINE_LENGTH], error_str[LCD_LINE_LENGTH:LCD_LINE_LENGTH*2] if len(error_str) > LCD_LINE_LENGTH else None)
                     last_error_display_time = current_time
@@ -226,8 +223,8 @@ def main():
             # Update LED indicators based on device state
             update_leds(data)
 
-            # Periodic logging (same interval as buzzer cooldown)
-            if current_time - last_log_time >= BUZZ_COOLDOWN:
+            # Periodic logging (same interval as notification cooldown)
+            if current_time - last_log_time >= NOTIF_COOLDOWN:
                 log_status(data, alert_triggered, buzzer_active)
                 last_log_time = current_time
 
