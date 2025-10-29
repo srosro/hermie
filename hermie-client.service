@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 User=odio
 WorkingDirectory=/home/odio/Hacking/hermie
-ExecStart=/home/odio/Hacking/hermie/.venv/bin/python /home/odio/Hacking/hermie/client.py
+ExecStart=/home/odio/Hacking/hermie/.venv/bin/python /home/odio/Hacking/hermie/client.py --headless
 Restart=always
 RestartSec=10
 
