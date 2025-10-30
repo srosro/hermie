@@ -13,24 +13,24 @@ BUZZER_GPIO_PIN = 16
 LCD_I2C_ADDRESS = 0x27
 LCD_LINE_LENGTH = 16
 BUZZ_DURATION_SECONDS = 3
-ALERT_DISPLAY_DURATION_SECONDS = 20
+ALERT_DISPLAY_DURATION_SECONDS = 60
 
 # Sensor reading interval
-READ_INTERVAL = 5  # seconds between sensor reads
+READ_INTERVAL = 30  # seconds between sensor reads
 
 # Temperature calibration
 TEMP_OFFSET_F = -1.0  # temperature offset in Fahrenheit
 
 # Temperature thresholds
-TEMP_HIGH_THRESHOLD = 85.0  # degrees F
+TEMP_HIGH_THRESHOLD = 86.0  # degrees F
 TEMP_LOW_THRESHOLD = 75.0   # degrees F
 
 # Humidity thresholds
 HUMIDITY_LOW_THRESHOLD = 75.0  # percent
-HUMIDITY_HIGH_THRESHOLD = 95.0  # percent
+HUMIDITY_HIGH_THRESHOLD = 98.0  # percent
 
 # Notification cooldown interval for buzzes, LCD alerts, and logging
-NOTIF_COOLDOWN = 300  # 5 minutes in seconds
+NOTIF_COOLDOWN = 600  # 10 minutes in seconds
 
 # Device control GPIO pin configuration
 # Using BCM numbering
